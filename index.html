@@ -7,7 +7,6 @@
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
 <!--.top{display: none;}-->
-
 <style>
 *{box-sizing:border-box}
 :root{--bg:#f5f5f9;--card:#fff;--text:#121214;--muted:#727278;--purple:#7257f6;--red:#e04444}
@@ -16,16 +15,16 @@ body{margin:0;min-height:100vh;background:var(--bg);font-family:-apple-system,Bl
 .top{display: none;}
 .logo{width:76px;height:76px;display:block;margin:0 auto 12px;border-radius:20px;object-fit:cover;box-shadow:0 8px 24px rgba(55,35,120,.16)}.top h1{font-size:30px;margin:0 0 6px}.top p{margin:0;color:var(--muted)}
 .scene{perspective:1400px}
-.card{position:relative;width:100%;min-height:610px;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.2,.7,.2,1)}
+.card{position:relative;width:100%;height:690px;min-height:690px;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.2,.7,.2,1)}
 .card.flipped{transform:rotateY(180deg)}
-.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--card);border-radius:30px;padding:22px;box-shadow:0 14px 45px rgba(0,0,0,.09);display:flex;flex-direction:column}
+.face{position:absolute;inset:0;height:100%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--card);border-radius:30px;padding:22px;box-shadow:0 14px 45px rgba(0,0,0,.09);display:flex;flex-direction:column}
 .back{transform:rotateY(180deg)}
 .faceHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .role{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .flip{border:0;background:#efeff4;color:#242428;border-radius:999px;padding:10px 13px;font-size:14px;font-weight:750;cursor:pointer}
 .title{text-align:center;font-size:27px;margin:8px 0 5px}.desc{text-align:center;color:var(--muted);line-height:1.4;margin:0 0 12px}
-.timer{text-align:center;font-size:50px;font-weight:800;font-variant-numeric:tabular-nums;margin:16px 0}
-.controls{margin-top:auto}
+.timer{text-align:center;font-size:50px;font-weight:800;font-variant-numeric:tabular-nums;margin:0}
+.controls{}
 button.action{width:100%;border:0;border-radius:19px;padding:17px 15px;margin-top:12px;font-size:17px;font-weight:800;cursor:pointer;transition:.1s}
 button.action:active{transform:scale(.985)}
 button.action:disabled{opacity:.36;cursor:not-allowed}
@@ -33,7 +32,31 @@ button.action:disabled{opacity:.36;cursor:not-allowed}
 .reverse{background:var(--purple);color:#fff}.normal{background:#eeeef3;color:#1c1c1f}
 .status{text-align:center;min-height:22px;margin-top:17px;color:var(--muted);font-size:14px}
 .listenerHint{background:#f2efff;border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.4;color:#51458d;margin:6px 0 2px}
-@media(max-height:740px){body{padding:10px}.card{min-height:570px}.timer{margin:8px 0;font-size:42px}.face{padding:18px}}
+@media(max-height:740px){body{padding:10px}.card{height:650px;min-height:650px}.timer{font-size:42px}.face{padding:18px}}
+
+/* Однакова геометрія обох сторін картки */
+.front .desc{margin-bottom:0}
+.front .timer{
+  flex:1;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.front .controls{margin-top:0}
+.front .status{margin-top:17px;margin-bottom:0}
+
+.back .listenerHint{margin-bottom:0}
+.back .timer{
+  flex:1;
+  min-height:70px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.back .controls{margin-top:0}
+.back .status{margin-top:17px;margin-bottom:0}
+
 </style>
 </head>
 <body>
