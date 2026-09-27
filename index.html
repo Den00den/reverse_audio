@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Голос навпаки — гра</title>
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<!--.top{display: none;}-->
+<style>
+*{box-sizing:border-box}
+:root{--bg:#f5f5f9;--card:#fff;--text:#121214;--muted:#727278;--purple:#7257f6;--red:#e04444}
+body{margin:0;min-height:100vh;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);padding:24px 16px;display:grid;place-items:center}
+.game{width: min(100%, 430px);}
+.top{display: none;}
+.logo{width:76px;height:76px;display:block;margin:0 auto 12px;border-radius:20px;object-fit:cover;box-shadow:0 8px 24px rgba(55,35,120,.16)}.top h1{font-size:30px;margin:0 0 6px}.top p{margin:0;color:var(--muted)}
+.scene{perspective:1400px}
+.card{position:relative;width:100%;min-height:610px;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.2,.7,.2,1)}
+.card.flipped{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--card);border-radius:30px;padding:22px;box-shadow:0 14px 45px rgba(0,0,0,.09);display:flex;flex-direction:column}
+.back{transform:rotateY(180deg)}
+.faceHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.role{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.flip{border:0;background:#efeff4;color:#242428;border-radius:999px;padding:10px 13px;font-size:14px;font-weight:750;cursor:pointer}
+.title{text-align:center;font-size:27px;margin:8px 0 5px}.desc{text-align:center;color:var(--muted);line-height:1.4;margin:0 0 12px}
+.timer{text-align:center;font-size:50px;font-weight:800;font-variant-numeric:tabular-nums;margin:16px 0}
+.controls{margin-top:auto}
+button.action{width:100%;border:0;border-radius:19px;padding:17px 15px;margin-top:12px;font-size:17px;font-weight:800;cursor:pointer;transition:.1s}
+button.action:active{transform:scale(.985)}
+button.action:disabled{opacity:.36;cursor:not-allowed}
+.record{background:#151515;color:#fff}.record.live{background:var(--red)}
+.reverse{background:var(--purple);color:#fff}.normal{background:#eeeef3;color:#1c1c1f}
+.status{text-align:center;min-height:22px;margin-top:17px;color:var(--muted);font-size:14px}
+.listenerHint{background:#f2efff;border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.4;color:#51458d;margin:6px 0 2px}
+@media(max-height:740px){body{padding:10px}.card{min-height:570px}.timer{margin:8px 0;font-size:42px}.face{padding:18px}}
+</style>
+</head>
+<body>
+<div class="game">
+  <div class="top">
+    <img class="logo" src="logo.png" alt="Логотип гри">
+    <h1>Голос навпаки</h1>
+    <p>Гра для двох на одному пристрої</p>
+  </div>
+
+  <div class="scene">
+    <div class="card" id="card">
+
+      <section class="face front">
+        <div class="faceHead">
+          <span class="role">1 · Загадувач</span>
+          <button class="flip" id="toListener" disabled>Слухач ↻</button>
+        </div>
+        <h2 class="title">Загадай фразу</h2>
+        <p class="desc">Запиши щось, а потім передай телефон другому гравцеві.</p>
+        <div class="timer" id="hostTimer">00:00</div>
+        <div class="controls">
+          <button class="action record" id="hostRecord">🎙️ Записати голос</button>
+          <button class="action reverse" id="hostReverse" disabled>↩️ Прослухати навпаки</button>
+          <button class="action normal" id="hostOriginal" disabled>▶️ Прослухати оригінал</button>
+        </div>
+        <div class="status" id="hostStatus">Запис ще не створено</div>
+      </section>
+
+      <section class="face back">
+        <div class="faceHead">
+          <span class="role">2 · Слухач</span>
+          <button class="flip" id="toHost">↶ Загадувач</button>
+        </div>
+        <h2 class="title">Відгадай фразу</h2>
+        <p class="desc">Послухай загадку навпаки й спробуй повторити те, що чуєш.</p>
+        <div class="listenerHint">Твій «оригінал» — це перевернутий запис Загадувача. Запиши свою імітацію та переверни її, щоб почути результат.</div>
+        <div class="timer" id="listenerTimer">00:00</div>
+        <div class="controls">
+          <button class="action normal" id="listenPuzzle">▶️ Прослухати загадку</button>
+          <button class="action record" id="listenerRecord">🎙️ Записати свою версію</button>
+          <button class="action reverse" id="listenerReverse" disabled>↩️ Обернути мій запис</button>
+        </div>
+        <div class="status" id="listenerStatus">Спробуй відтворити почуте</div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const card=$('card');
+let ctx=null, stream=null, source=null, processor=null, muteGain=null;
+let recordingRole=null, chunks=[], rate=44100, playback=null, tick=null, started=0;
+let hostOriginal=null, hostReversed=null, listenerOriginal=null, listenerReversed=null;
+
+function time(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function stopPlayback(){if(playback){try{playback.stop()}catch(e){} playback=null}}
+async function ensureContext(){if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();await ctx.resume()}
+async function play(buffer,statusEl,msg){
+  if(!buffer||recordingRole)return; stopPlayback(); await ensureContext();
+  const p=ctx.createBufferSource(); p.buffer=buffer;p.connect(ctx.destination);playback=p;
+  statusEl.textContent=msg;p.onended=()=>{if(playback===p){playback=null;statusEl.textContent='Можна прослухати ще раз'}};
+  p.start();
+}
+function clearListener(){
+  listenerOriginal=listenerReversed=null;
+  $('listenerReverse').disabled=true;
+  $('listenerTimer').textContent='00:00';
+  $('listenerStatus').textContent='Спробуй відтворити почуте';
+  $('listenerRecord').textContent='🎙️ Записати свою версію';
+  $('listenerRecord').classList.remove('live');
+}
+function resetWholeRound(){
+  hostOriginal=hostReversed=null; clearListener();
+  $('hostReverse').disabled=true;$('hostOriginal').disabled=true;$('toListener').disabled=true;
+}
+async function begin(role){
+  stopPlayback();
+  if(role==='host') resetWholeRound();
+  else clearListener();
+  try{
+    await ensureContext();
+    stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    source=ctx.createMediaStreamSource(stream);
+    processor=ctx.createScriptProcessor(4096,1,1);
+    muteGain=ctx.createGain();muteGain.gain.value=0;
+    chunks=[];rate=ctx.sampleRate;recordingRole=role;
+    processor.onaudioprocess=e=>{if(recordingRole)chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)))};
+    source.connect(processor);processor.connect(muteGain);muteGain.connect(ctx.destination);
+    const btn=$(role==='host'?'hostRecord':'listenerRecord');
+    const timer=$(role==='host'?'hostTimer':'listenerTimer');
+    const status=$(role==='host'?'hostStatus':'listenerStatus');
+    btn.textContent='⏹️ Зупинити запис';btn.classList.add('live');status.textContent='● Йде запис…';
+    started=Date.now();timer.textContent='00:00';
+    tick=setInterval(()=>timer.textContent=time(Math.floor((Date.now()-started)/1000)),250);
+  }catch(e){
+    recordingRole=null;
+    $(role==='host'?'hostStatus':'listenerStatus').textContent='Немає доступу до мікрофона';
+  }
+}
+function end(role){
+  if(recordingRole!==role)return;
+  recordingRole=null;clearInterval(tick);
+  try{source.disconnect();processor.disconnect();muteGain.disconnect()}catch(e){}
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  const n=chunks.reduce((a,b)=>a+b.length,0);
+  const btn=$(role==='host'?'hostRecord':'listenerRecord');
+  btn.classList.remove('live');
+  btn.textContent=role==='host'?'🎙️ Записати заново':'🎙️ Записати свою версію заново';
+  if(!n)return;
+  const merged=new Float32Array(n);let o=0;for(const c of chunks){merged.set(c,o);o+=c.length}
+  const rev=new Float32Array(n);for(let i=0;i<n;i++)rev[i]=merged[n-1-i];
+  const a=ctx.createBuffer(1,n,rate);a.copyToChannel(merged,0);
+  const r=ctx.createBuffer(1,n,rate);r.copyToChannel(rev,0);
+  if(role==='host'){
+    hostOriginal=a;hostReversed=r;
+    $('hostReverse').disabled=false;$('hostOriginal').disabled=false;$('toListener').disabled=false;
+    $('hostStatus').textContent='Готово — передай телефон Слухачу';
+  }else{
+    listenerOriginal=a;listenerReversed=r;$('listenerReverse').disabled=false;
+    $('listenerStatus').textContent='Готово — тепер оберни свій запис';
+  }
+}
+$('hostRecord').onclick=()=>recordingRole==='host'?end('host'):begin('host');
+$('listenerRecord').onclick=()=>recordingRole==='listener'?end('listener'):begin('listener');
+$('hostReverse').onclick=()=>play(hostReversed,$('hostStatus'),'Відтворюється навпаки…');
+$('hostOriginal').onclick=()=>play(hostOriginal,$('hostStatus'),'Відтворюється оригінал…');
+$('listenPuzzle').onclick=()=>play(hostReversed,$('listenerStatus'),'Слухаєш загадку навпаки…');
+$('listenerReverse').onclick=()=>play(listenerReversed,$('listenerStatus'),'Твоя імітація звучить навпаки…');
+$('toListener').onclick=()=>{if(hostReversed&&!recordingRole){stopPlayback();card.classList.add('flipped')}};
+$('toHost').onclick=()=>{if(!recordingRole){stopPlayback();card.classList.remove('flipped')}};
+window.addEventListener('beforeunload',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});
+</script>
+</body>
+</html>
